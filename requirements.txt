@@ -1,0 +1,11 @@
+langchain
+langgraph
+fastapi
+uvicorn
+psycopg2-binary
+sqlalchemy
+python-dotenv
+langchain-openai
+tavily-python
+langchain-community
+mcp
