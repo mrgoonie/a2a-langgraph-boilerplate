@@ -25,7 +25,8 @@ This project is a boilerplate for developers who want to start building an AI ag
 * A supervisor agent will receive input (prompt) from a user via API call, then create a detailed plan with its current capabilities (AI agents underneat and their tools)
 * Then request the AI agents to perform tasks via A2A protocol
 * Wait for all AI agents finish given tasks
-* Grab all the results, analyze and respond to user based on the original input prompt.
+* Grab all the results, analyze and decide to assign more tasks to AI agents, or finish the plan
+* Synthesize the results and respond to user based on the original input prompt.
 
 ### Diagram of example flow
 

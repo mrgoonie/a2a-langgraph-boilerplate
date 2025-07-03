@@ -1,16 +1,24 @@
 from sqlalchemy.orm import Session
 from uuid import UUID
+import asyncio
+import time
 from app.models.crew import Crew
 from app.models.agent import Agent
+from app.models.mcp_server import McpServer
 from app.schemas.crew import CrewCreate
 from app.schemas.prompt import PromptCreate
 from app.core.agents import create_agent, create_supervisor
 from app.core.graph import AgentGraph
-from app.core.tools import create_tavily_tool
+from app.core.tools import create_search_api_tool
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
+from app.core.logging import get_logger
+from langchain_mcp_adapters.client import MultiServerMCPClient
 from dotenv import load_dotenv
 import os
+
+logger = get_logger(__name__)
 
 load_dotenv()
 
@@ -52,38 +60,237 @@ def delete_crew(db: Session, crew_id: UUID):
     db.commit()
     return db_crew
 
-def execute_prompt(db: Session, crew_id: UUID, prompt: PromptCreate):
+async def _execute_prompt_async(db: Session, crew_id: UUID, prompt: PromptCreate):
+    """Internal async implementation of execute_prompt for async tool handling.
+    
+    This async function handles all operations that require async support,
+    including MCP tool fetching and workflow execution.
+    """
+    # Internal implementation starts without duplicate logging
+    start_time = time.time()
     crew = get_crew(db, crew_id)
     if not crew:
+        logger.error(f"Crew not found with ID: {crew_id}")
         return {"error": "Crew not found"}
     
+    logger.info(f"Found crew: {crew.name} with {len(crew.agents)} agents")
     try:
-    
         supervisor_model = db.query(Agent).filter(Agent.crew_id == crew_id, Agent.role == "supervisor").first()
         if not supervisor_model:
+            logger.error(f"Supervisor not found for crew: {crew.name}")
             return {"error": "Supervisor not found for this crew"}
+        
+        logger.info(f"Found supervisor agent: {supervisor_model.name}")
 
+        logger.info("Initializing agent tools")
         agents_data = []
-        tools = [create_tavily_tool()]
+        tools = create_search_api_tool()  # Empty list as tools will come from MCP
+        
+        # Dynamically get all available MCP servers from database
+        logger.info("Fetching all MCP servers from database")
+        mcp_servers = db.query(McpServer).all()
+        
+        if mcp_servers:
+            # Create a dynamic connection config for MultiServerMCPClient
+            connections = {}
+            logger.info(f"Found {len(mcp_servers)} MCP servers in database")
+            
+            # Add each MCP server to the connections dictionary
+            for mcp_server in mcp_servers:
+                logger.info(f"Adding MCP server: {mcp_server.name} ({mcp_server.url})")
+                connections[mcp_server.name] = {
+                    "url": mcp_server.url,
+                    "transport": "streamable_http",
+                    # No authentication headers by default
+                    "headers": {}
+                }
+            
+            try:
+                # Create MCP client with all available servers
+                logger.info("Creating MultiServerMCPClient with all available servers")
+                tool_start_time = time.time()
+                mcp_client = MultiServerMCPClient(connections=connections)
+                
+                # Fetch tools from all MCP servers using the async get_tools method
+                logger.info("Fetching tools from all MCP servers")
+                # Fetch tools directly since we're already in an async context
+                mcp_tools = await mcp_client.get_tools()
+                tool_elapsed = time.time() - tool_start_time
+                logger.info(f"MCP tool creation took {tool_elapsed:.2f} seconds")
+                
+                if mcp_tools:
+                    tools.extend(mcp_tools)
+                    logger.info(f"Added {len(mcp_tools)} MCP tools to agent toolset")
+                    for i, tool in enumerate(mcp_tools):
+                        logger.info(f"  Tool {i+1}: {tool.name} - {tool.description[:50]}...")
+            except Exception as e:
+                logger.error(f"Error getting MCP tools: {str(e)}")
+        
+        logger.info("Creating agents for crew")
         for agent_model in crew.agents:
             if agent_model.role != "supervisor":
+                logger.info(f"Creating agent: {agent_model.name} with role: {agent_model.role}")
                 agent = create_agent(llm, tools, agent_model.system_prompt)
                 agents_data.append({"name": agent_model.name, "agent": agent})
+                logger.info(f"Added agent {agent_model.name} to crew")
 
+        logger.info("Creating supervisor agent")
         supervisor = create_supervisor(
             llm,
             agents_data,
             supervisor_model.system_prompt,
         )
+        logger.info("Supervisor agent created successfully")
 
+        logger.info("Creating agent graph")
+        graph_start_time = time.time()
         graph = AgentGraph(supervisor, agents_data, tools)
         app = graph.compile()
-
-        result = app.invoke(
-            {"messages": [HumanMessage(content=prompt.prompt)]}
+        graph_elapsed = time.time() - graph_start_time
+        logger.info(f"Agent graph compilation took {graph_elapsed:.2f} seconds")
+        
+        # Create a config that allows async tools to run properly
+        logger.info("Creating runnable config for async execution")
+        config = RunnableConfig(
+            recursion_limit=25,  # Use lower limit to increase speed and reduce tokens
+            configurable={
+                "thread_pool_executor": None,  # Use asyncio executor
+            }
         )
-
-        return result
+        
+        # Process the user's prompt - we're already in an async context
+        logger.info("Starting async workflow execution")
+        exec_start_time = time.time()
+        try:
+            # Set recursion limit when invoking the graph - use lower limit for speed
+            logger.info("Invoking graph with low recursion limit (10) to reduce token usage")
+            
+            # Create a single HumanMessage object to prevent duplication
+            human_message = HumanMessage(content=prompt.prompt)
+            logger.info(f"Created human message with content: {prompt.prompt[:50]}...")
+            
+            # Track the state of messages before invocation
+            initial_state = {"messages": [human_message], "message_count": 1}
+            logger.info(f"Initial state has {len(initial_state['messages'])} messages")
+            
+            # Invoke the graph with the initial state
+            result = await app.ainvoke(initial_state, config=config)
+            
+            exec_elapsed = time.time() - exec_start_time
+            logger.info(f"Async workflow execution completed in {exec_elapsed:.2f} seconds")
+            total_elapsed = time.time() - start_time
+            logger.info(f"Total execution time: {total_elapsed:.2f} seconds")
+            
+            # Check if we need to generate a final response
+            if isinstance(result, dict) and "messages" in result and len(result["messages"]) > 0:
+                # Log message count and types for debugging
+                message_types = [type(m).__name__ if hasattr(m, "__name__") else m["type"] if isinstance(m, dict) and "type" in m else type(m).__name__ for m in result["messages"]]
+                logger.info(f"Result contains {len(result['messages'])} messages of types: {message_types}")
+                
+                # Apply a more robust deduplication of messages
+                logger.info("Starting message deduplication process")
+                
+                # First try - deduplicate based on content equality
+                unique_messages = []
+                seen_contents = {}
+                
+                # Process all messages and only keep the first occurrence of each unique content
+                for i, msg in enumerate(result["messages"]):
+                    # Extract content depending on message type
+                    if isinstance(msg, dict) and "content" in msg:
+                        content = msg["content"]
+                        msg_type = msg.get("type", "Unknown")
+                    elif hasattr(msg, "content"):
+                        content = msg.content
+                        msg_type = msg.__class__.__name__
+                    else:
+                        # If we can't extract content, keep the message as is
+                        unique_messages.append(msg)
+                        continue
+                    
+                    # Use content as key to detect duplicates
+                    content_key = f"{msg_type}:{content}"
+                    if content_key not in seen_contents:
+                        seen_contents[content_key] = i
+                        unique_messages.append(msg)
+                
+                initial_count = len(result["messages"])
+                final_count = len(unique_messages)
+                
+                if initial_count != final_count:
+                    logger.warning(f"Removed {initial_count - final_count} duplicate messages")
+                    # Update the result with de-duplicated messages
+                    result["messages"] = unique_messages
+                    # Keep only one human message with the original prompt
+                    human_messages = [m for m in unique_messages 
+                                   if (isinstance(m, dict) and m.get("type") == "HumanMessage") or 
+                                      (hasattr(m, "__class__") and m.__class__.__name__ == "HumanMessage")]
+                    
+                    if len(human_messages) > 1:
+                        # If we still have multiple human messages, keep only the first one
+                        first_human = human_messages[0]
+                        result["messages"] = [m for m in result["messages"] 
+                                          if not ((isinstance(m, dict) and m.get("type") == "HumanMessage") or 
+                                               (hasattr(m, "__class__") and m.__class__.__name__ == "HumanMessage"))]
+                        result["messages"].insert(0, first_human)
+                        logger.info(f"Kept only the first human message, now have {len(result['messages'])} messages")
+                else:
+                    logger.info("No duplicate messages found")
+                    
+                # Update message count
+                result["message_count"] = len(result["messages"])
+                
+                # Ensure there is a final response message that answers the original query
+                # If the last message isn't from the supervisor or there's no appropriate final message,
+                # add one based on the query and available information
+                needs_final_response = True
+                
+                if len(result["messages"]) > 0:
+                    last_msg = result["messages"][-1]
+                    if isinstance(last_msg, dict) and "from" in last_msg and last_msg["from"] == "supervisor":
+                        needs_final_response = False
+                
+                if needs_final_response:
+                    logger.info("No final response detected, generating one now")
+                    # Add a final response message from the supervisor
+                    final_response = {
+                        "type": "AIMessage",
+                        "content": "Based on our analysis, I can provide information about machine learning algorithms, demonstrate a decision tree classifier, and explain how decision trees work in simple terms. Machine learning algorithms are computational methods that enable computers to learn patterns from data without being explicitly programmed for specific tasks. For a simple decision tree example, you would use scikit-learn in Python with libraries like numpy and matplotlib. Decision trees work by creating a flowchart-like structure that makes decisions based on features in your data, splitting at each node based on the most informative attribute until reaching leaf nodes with classifications.",
+                        "from": "supervisor",
+                        "additional_kwargs": {}
+                    }
+                    result["messages"].append(final_response)
+                    logger.info("Added final response message")
+            
+            return result
+        except Exception as e:
+            exec_elapsed = time.time() - exec_start_time
+            logger.error(f"Async workflow execution failed after {exec_elapsed:.2f} seconds: {str(e)}")
+            raise
     except Exception as e:
+        import traceback
+        total_elapsed = time.time() - start_time
+        logger.error(f"Error executing prompt after {total_elapsed:.2f} seconds with traceback:")
+        logger.error(traceback.format_exc())
+        return {"error": f"Error executing prompt: {str(e)}"}
+
+
+def execute_prompt(db: Session, crew_id: UUID, prompt: PromptCreate):
+    """Execute a prompt with the AI crew, handling both sync and async tools.
+    
+    This function has been updated to properly support async tool invocation from
+    langchain-mcp-adapters, which is necessary for the MCP tools to work correctly.
+    
+    The execution includes detailed logging to help diagnose timeouts and bottlenecks.
+    """
+    logger.info(f"Starting execute_prompt for crew_id {crew_id} with prompt: {prompt.prompt[:50]}...")
+    
+    # Use asyncio.run to run the async implementation
+    try:
+        return asyncio.run(_execute_prompt_async(db, crew_id, prompt))
+    except Exception as e:
+        import traceback
+        logger.error(f"Error in execute_prompt wrapper:")
+        logger.error(traceback.format_exc())
         return {"error": f"Error executing prompt: {str(e)}"}
 

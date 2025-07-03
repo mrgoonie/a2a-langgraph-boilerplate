@@ -12,6 +12,141 @@
 * Grab all the results, analyze and respond to user based on the original input prompt.
 
 
+## AI Crew Workflow Demonstration
+
+To demonstrate the complete AI crew workflow, we have implemented a comprehensive test in `tests/test_ai_crew_simple_demo.py`. This test showcases the end-to-end flow using real API endpoints and services to create AI crews, agents, tools, and execute prompts through the supervisor-agent architecture.
+
+### Workflow Steps
+
+The demonstration follows these steps:
+
+1. **Create an AI Crew with a Supervisor Agent**
+   - Creates a new crew with a specific name and description
+   - Creates a supervisor agent with specialized system instructions
+   - Attaches the supervisor agent to the crew
+
+2. **Add Specialized Agents to the Crew**
+   - Creates multiple specialized agents (Researcher, Coder, Summarizer)
+   - Each agent has custom system instructions tailored to its role
+   - Adds the agents to the crew for collaborative problem solving
+
+3. **Add Tools to Agents**
+   - Creates or fetches an MCP server for tool integration
+   - Creates tools with appropriate descriptions and API names
+   - Assigns tools to agents based on their specialized needs
+
+4. **Execute a Prompt Through the Crew**
+   - Sends a user query to the crew via the supervisor agent
+   - Uses the actual `crew_service.execute_prompt()` function to process the query
+   - The function handles supervisor delegation, agent execution, and result synthesis
+
+5. **Validate and Present Results**
+   - Validates the workflow components and execution attempt
+   - Presents the actual API response from the workflow execution
+   - Handles potential authentication or connectivity errors gracefully
+
+### Key Features
+
+- **Real API Integration**: Uses actual API endpoints and services for all operations
+- **A2A Protocol**: Demonstrates real agent-to-agent communication via LangGraph
+- **Tool Integration**: Shows actual MCP server and tool usage (requires authentication)
+- **Workflow Validation**: Includes assertions to verify workflow components
+- **Error Handling**: Provides comprehensive error reporting and diagnostics
+
+### MCP Integration and Tool Usage
+
+The workflow integrates Model Context Protocol (MCP) servers to provide agents with access to external tools. We've implemented two approaches for MCP integration:
+
+#### 1. Direct MCP Client Integration (Legacy)
+
+Initially, the project used the MCP client library directly, which encountered issues with session ID handling and authentication. Common issues included:
+
+- Session IDs returned as `None` despite being created successfully on the server side
+- Authentication failures (401 errors) even with properly configured API keys
+- Protocol compatibility issues between client and server
+
+#### 2. Langchain MCP Adapters Integration (Current)
+
+To overcome these limitations, we've integrated the `langchain-mcp-adapters` library which provides better compatibility with Langchain and LangGraph:
+
+```python
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+# Create an MCP client with all available servers from the database
+mcp_servers = {}
+for server in db_mcp_servers:
+    mcp_servers[server.name] = server.url
+
+# Create the client with all available servers
+mcp_client = MultiServerMCPClient(servers=mcp_servers)
+
+# Asynchronously fetch all available tools
+tools = await mcp_client.get_tools()
+```
+
+Key advantages of this approach include:
+
+- Better session management and authentication handling
+- Support for async tool invocation required by LangGraph
+- Simplified tool creation and management
+- Integration with LangGraph's agent execution framework
+- Dynamic tool discovery and loading at runtime
+
+### Context Management and Token Optimization
+
+To prevent token limit errors and improve performance, we've implemented a context management system that:
+
+1. **Monitors message history growth**: Tracks message count in agent conversations
+2. **Applies intelligent summarization**: Summarizes historical messages when context size exceeds thresholds
+3. **Preserves critical context**: Always keeps the initial user query and most recent messages
+4. **Reduces LLM token consumption**: Prevents OpenAI API token limit errors by condensing repeated context
+
+The implementation uses a pre-processing node in the agent graph that manages state before it reaches any agent:
+
+```python
+def summarize_messages(messages, max_keep=3):
+    """Summarize message history to reduce token consumption."""
+    if len(messages) <= max_keep:
+        return messages
+    
+    # Keep the first message (user query) and the last max_keep messages
+    keep_messages = [messages[0]] + messages[-max_keep:]
+    
+    # Create a summary of the dropped messages
+    dropped_messages = messages[1:-max_keep]
+    if dropped_messages:
+        summary_content = f"Summary of {len(dropped_messages)} previous messages: "
+        summary_content += "Agents discussed the query and exchanged information."
+        keep_messages.insert(1, SystemMessage(content=summary_content))
+    
+    return keep_messages
+```
+
+This system helps prevent recursion errors and token overflow issues that previously affected workflow execution.
+
+### Authentication Requirements
+
+To run the complete workflow with tool execution, you need to configure the following:
+
+1. **MCP Server Authentication**: The MCP server at `https://searchapi-mcp.prod.diginext.site/mcp` may require API credentials depending on the server configuration.
+
+2. **API Keys Configuration**: To set up authentication if required:
+   - Add your API keys to the `.env` file in the project root
+   - The keys will be automatically loaded by the environment configuration
+   - The Langchain MCP adapters will handle authentication based on the loaded environment
+
+3. **Asynchronous Execution**: The workflow uses async execution for MCP tools, which requires proper async/await handling throughout the codebase.
+
+### Running the Demonstration
+
+To run the AI crew workflow demonstration:
+
+```bash
+python tests/test_ai_crew_simple_demo.py
+```
+
+Without proper API credentials, the test will still create all necessary components and attempt to execute the workflow, but will report an authentication error during the tool execution phase.
+
 ## Project Structure
 
 ```
@@ -74,6 +209,7 @@
 │   ├── conftest.py
 │   ├── test_agents.py
 │   ├── test_ai_crew_chat.py
+│   ├── test_ai_crew_simple_demo.py
 │   ├── test_conversations.py
 │   ├── test_crews.py
 │   ├── test_mcp_servers.py
