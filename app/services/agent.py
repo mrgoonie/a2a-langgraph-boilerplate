@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from uuid import UUID
 from app.models.agent import Agent
 from app.models.tool import Tool
 from app.schemas.agent import AgentCreate
@@ -16,13 +17,13 @@ def create_agent(db: Session, agent: AgentCreate):
     db.refresh(db_agent)
     return db_agent
 
-def get_agent(db: Session, agent_id: int):
+def get_agent(db: Session, agent_id: UUID):
     return db.query(Agent).filter(Agent.id == agent_id).first()
 
 def get_agents(db: Session, skip: int = 0, limit: int = 100):
     return db.query(Agent).offset(skip).limit(limit).all()
 
-def update_agent(db: Session, agent_id: int, agent: AgentCreate):
+def update_agent(db: Session, agent_id: UUID, agent: AgentCreate):
     db_agent = db.query(Agent).filter(Agent.id == agent_id).first()
     db_agent.name = agent.name
     db_agent.crew_id = agent.crew_id
@@ -38,13 +39,13 @@ def update_agent(db: Session, agent_id: int, agent: AgentCreate):
     db.refresh(db_agent)
     return db_agent
 
-def delete_agent(db: Session, agent_id: int):
+def delete_agent(db: Session, agent_id: UUID):
     db_agent = db.query(Agent).filter(Agent.id == agent_id).first()
     db.delete(db_agent)
     db.commit()
     return db_agent
 
-def add_tool_to_agent(db: Session, agent_id: int, tool_id: int):
+def add_tool_to_agent(db: Session, agent_id: UUID, tool_id: UUID):
     agent = get_agent(db, agent_id)
     tool = db.query(Tool).filter(Tool.id == tool_id).first()
     if tool.mcp_server_id:

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from uuid import UUID
 from app.core.database import get_db
 from app.services import conversation as conversation_service
 from app.schemas import conversation as conversation_schema
@@ -16,7 +17,7 @@ def read_conversations(skip: int = 0, limit: int = 100, db: Session = Depends(ge
     return conversations
 
 @router.get("/{conversation_id}", response_model=conversation_schema.Conversation)
-def read_conversation(conversation_id: int, db: Session = Depends(get_db)):
+def read_conversation(conversation_id: UUID, db: Session = Depends(get_db)):
     db_conversation = conversation_service.get_conversation(db, conversation_id=conversation_id)
     if db_conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")

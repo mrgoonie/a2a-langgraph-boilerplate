@@ -16,7 +16,18 @@ This project is a boilerplate for developers who want to start building an AI ag
 *   Create & manage conversations with AI crews / AI agents
 *   Expose Swagger API Docs for frontend integration instructions
 
+## Concept
+* Each AI agent cluster can have multiple AI agent crews (AI Crews)
+* Each AI crew can have multiple AI agent, leaded by a superviser (a default AI agent of an AI crew)
+* Each AI agent can call tools via MCP servers integration
+
 ## How it works
+* A supervisor agent will receive input (prompt) from a user via API call, then create a detailed plan with its current capabilities (AI agents underneat and their tools)
+* Then request the AI agents to perform tasks via A2A protocol
+* Wait for all AI agents finish given tasks
+* Grab all the results, analyze and respond to user based on the original input prompt.
+
+### Diagram of example flow
 
 <diagram of example flow>
 
@@ -78,7 +89,28 @@ The application will be available at `http://127.0.0.1:8000`.
 To run the tests, run the following command:
 
 ```bash
-python -m pytest
+source .venv/bin/activate
+which python
+python -m pytest tests/ -v
+```
+
+### Run specific test
+
+```bash
+# To run all tests in the tests directory:
+python -m pytest tests/
+
+# To run the UUID model tests we implemented:
+python -m pytest test_uuid_models.py
+
+# To run a specific test file:
+python -m pytest tests/test_crews.py
+```
+
+### [Special] Run AI crew chat workflow demonstration
+
+```bash
+python -m tests.test_ai_crew_simple_demo
 ```
 
 ## API Documentation

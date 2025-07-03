@@ -1,5 +1,17 @@
 # PROJECT_OVERVIEW.md
 
+## Concept
+* Each AI agent cluster can have multiple AI agent crews (AI Crews)
+* Each AI crew can have multiple AI agent, leaded by a superviser (a default AI agent of an AI crew)
+* Each AI agent can call tools via MCP servers integration
+
+## How it works
+* A supervisor agent will receive input (prompt) from a user via API call, then create a detailed plan with its current capabilities (AI agents underneat and their tools)
+* Then request the AI agents to perform tasks via A2A protocol
+* Wait for all AI agents finish given tasks
+* Grab all the results, analyze and respond to user based on the original input prompt.
+
+
 ## Project Structure
 
 ```

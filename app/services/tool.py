@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from uuid import UUID
 from app.models.tool import Tool
 from app.schemas.tool import ToolCreate
 
@@ -9,13 +10,13 @@ def create_tool(db: Session, tool: ToolCreate):
     db.refresh(db_tool)
     return db_tool
 
-def get_tool(db: Session, tool_id: int):
+def get_tool(db: Session, tool_id: UUID):
     return db.query(Tool).filter(Tool.id == tool_id).first()
 
 def get_tools(db: Session, skip: int = 0, limit: int = 100):
     return db.query(Tool).offset(skip).limit(limit).all()
 
-def update_tool(db: Session, tool_id: int, tool: ToolCreate):
+def update_tool(db: Session, tool_id: UUID, tool: ToolCreate):
     db_tool = db.query(Tool).filter(Tool.id == tool_id).first()
     db_tool.name = tool.name
     db_tool.description = tool.description
@@ -24,7 +25,7 @@ def update_tool(db: Session, tool_id: int, tool: ToolCreate):
     db.refresh(db_tool)
     return db_tool
 
-def delete_tool(db: Session, tool_id: int):
+def delete_tool(db: Session, tool_id: UUID):
     db_tool = db.query(Tool).filter(Tool.id == tool_id).first()
     db.delete(db_tool)
     db.commit()

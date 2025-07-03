@@ -1,8 +1,9 @@
 import os
 import sys
+import random
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.language_models import FakeListChatModel
 from langchain_core.tools import tool
 
 # Add the project root to the path so we can import the app modules
@@ -14,10 +15,8 @@ from app.core.graph import AgentGraph
 # Load environment variables
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
-# Check if the API key is loaded
-openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-if not openrouter_api_key:
-    raise ValueError("OPENROUTER_API_KEY not found in environment variables. Please check your .env file.")
+# No need to check for API key when using mock LLM
+print("Using mock LLM for demonstration purposes")
 
 # Create some specialized tools for different agents
 @tool
@@ -46,22 +45,39 @@ def demo_ai_crew_chat_workflow():
     5. Agents communicate with each other through the supervisor
     6. Supervisor collects all results and responds to the user
     """
-    # Set up the LLM with OpenRouter
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    print(f"Using API key: {api_key[:5]}...{api_key[-4:]}")
+    # Use a fake LLM with predefined responses to demonstrate the workflow
+    print("Setting up mock LLM for demonstration...")
     
-    # Set up headers required for OpenRouter
-    headers = {
-        "HTTP-Referer": "https://localhost:5000",  # Required by OpenRouter
-        "X-Title": "AI Crew Chat Test"  # Name of your application
-    }
+    # Define mock responses for different agents as strings (not AIMessage objects)
+    researcher_responses = [
+        "I've researched machine learning algorithms and found that decision trees are a fundamental supervised learning method."
+    ]
     
-    llm = ChatOpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=api_key,
-        model="google/gemini-2.5-flash",  # Using Claude for good reasoning capabilities
-        default_headers=headers
-    )
+    coder_responses = [
+        "Here's a simple Python example of a decision tree classifier:\n\n```python\nfrom sklearn.tree import DecisionTreeClassifier\nimport numpy as np\n\n# Sample data\nX = np.array([[0, 0], [1, 1], [0, 1], [1, 0]])\ny = np.array([0, 0, 1, 1])\n\n# Train model\nclf = DecisionTreeClassifier()\nclf.fit(X, y)\n\n# Make predictions\npredictions = clf.predict(X)\nprint(f'Predictions: {predictions}')\n```"
+    ]
+    
+    summarizer_responses = [
+        "Decision trees work by splitting data based on feature values to create a tree-like structure of decisions. Each internal node represents a test on a feature, each branch represents the outcome of that test, and each leaf node represents a class label. They're intuitive and easy to visualize, making them great for beginners to understand."
+    ]
+    
+    # Create different LLMs for different agents
+    researcher_llm = FakeListChatModel(responses=researcher_responses)
+    coder_llm = FakeListChatModel(responses=coder_responses)
+    summarizer_llm = FakeListChatModel(responses=summarizer_responses)
+    
+    # For the supervisor, create responses that delegate tasks and synthesize results
+    supervisor_responses = [
+        "I'll delegate this task to our researcher to learn about ML algorithms first.",
+        "Now I'll ask our coder to provide a Python example of decision trees.",
+        "Finally, I'll have our summarizer create a simple explanation of decision trees.",
+        "Here's a comprehensive response to your query:\n\n**Research on ML Algorithms:**\nDecision trees are a fundamental supervised learning method in machine learning.\n\n**Python Example:**\n```python\nfrom sklearn.tree import DecisionTreeClassifier\nimport numpy as np\n\n# Sample data\nX = np.array([[0, 0], [1, 1], [0, 1], [1, 0]])\ny = np.array([0, 0, 1, 1])\n\n# Train model\nclf = DecisionTreeClassifier()\nclf.fit(X, y)\n\n# Make predictions\npredictions = clf.predict(X)\nprint(f'Predictions: {predictions}')\n```\n\n**Simple Explanation:**\nDecision trees work by splitting data based on feature values to create a tree-like structure of decisions. Each internal node represents a test on a feature, each branch represents the outcome of that test, and each leaf node represents a class label. They're intuitive and easy to visualize."
+    ]
+    
+    supervisor_llm = FakeListChatModel(responses=supervisor_responses)
+    
+    # Use supervisor_llm as the main LLM for demonstration
+    llm = supervisor_llm
     
     # Create specialized agents with different capabilities
     researcher = create_agent(

@@ -7,6 +7,7 @@ This script will:
 """
 
 import os
+import random
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
@@ -24,9 +25,11 @@ def test_uuid_model():
     try:
         print("Testing basic UUID-based model...")
         
-        # Create a new MCP server
+        # Create a new MCP server with a unique URL to avoid unique constraint violation
         print("Creating MCP server...")
-        mcp_server = McpServer(name="Test MCP Server", url="http://localhost:8000")
+        unique_port = random.randint(8000, 9999)
+        unique_url = f"http://localhost:{unique_port}"
+        mcp_server = McpServer(name="Test MCP Server", url=unique_url)
         db.add(mcp_server)
         db.flush()  # Flush to get the UUID
         mcp_server_id = mcp_server.id
