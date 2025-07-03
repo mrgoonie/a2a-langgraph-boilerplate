@@ -2,6 +2,9 @@
 
 This project is a boilerplate for developers who want to start building an AI agent cluster with A2A and MCP servers integration faster and more efficiently.
 
+- [Project Overview](PROJECT_OVERVIEW.md)
+- [Agent Instructions](AGENT_INSTRUCTIONS.md)
+
 ## Features
 
 *   Create & manage AI crews
@@ -12,6 +15,10 @@ This project is a boilerplate for developers who want to start building an AI ag
 *   Monitor activity logs
 *   Create & manage conversations with AI crews / AI agents
 *   Expose Swagger API Docs for frontend integration instructions
+
+## How it works
+
+<diagram of example flow>
 
 ## Getting Started
 
@@ -65,6 +72,14 @@ uvicorn app.main:app --reload
 ```
 
 The application will be available at `http://127.0.0.1:8000`.
+
+### Running the tests
+
+To run the tests, run the following command:
+
+```bash
+python -m pytest
+```
 
 ## API Documentation
 

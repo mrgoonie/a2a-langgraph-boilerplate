@@ -59,7 +59,7 @@ def demo_ai_crew_chat_workflow():
     llm = ChatOpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=api_key,
-        model="anthropic/claude-3-haiku",  # Using Claude for good reasoning capabilities
+        model="google/gemini-2.5-flash",  # Using Claude for good reasoning capabilities
         default_headers=headers
     )
     

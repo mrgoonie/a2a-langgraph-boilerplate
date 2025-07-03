@@ -1,17 +1,17 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, UUID4
 from typing import Optional
 
 class ConversationBase(BaseModel):
     user_input: str
     agent_output: str
-    crew_id: Optional[int] = None
-    agent_id: Optional[int] = None
+    crew_id: Optional[UUID4] = None
+    agent_id: Optional[UUID4] = None
 
 class ConversationCreate(ConversationBase):
     pass
 
 class Conversation(ConversationBase):
-    id: int
+    id: UUID4
 
     class Config:
         from_attributes = True

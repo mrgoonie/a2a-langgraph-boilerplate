@@ -52,4 +52,5 @@ This project is a boilerplate for developers who want to start building an AI ag
 * always implement error catching handler
 * always implement user-friendly flows
 * always follow security best practices
-* always commit your code after finishing fixing a bug or implementing a feature completely
+* always write tests for every feature
+* always commit your code after finishing fixing a bug or implementing a feature completely (make sure `.env` file is not committed)

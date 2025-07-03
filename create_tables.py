@@ -4,6 +4,7 @@ from app.models.crew import Crew
 from app.models.agent import Agent
 from app.models.mcp_server import McpServer
 from app.models.tool import Tool
+from app.models.conversation import Conversation
 from app.models.agent_tool import agent_tool
 
 def create_tables():

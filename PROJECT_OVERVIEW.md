@@ -6,46 +6,50 @@
 .
 ├── AGENT_INSTRUCTIONS.md
 ├── app
-│   ├── __init__.py
-│   ├── api
-│   │   ├── __init__.py
-│   │   ├── agents.py
-│   │   ├── conversations.py
-│   │   ├── crews.py
-│   │   ├── mcp_servers.py
-│   │   └── tools.py
-│   ├── core
-│   │   ├── __init__.py
-│   │   ├── agents.py
-│   │   ├── database.py
-│   │   ├── graph.py
-│   │   ├── logging.py
-│   │   └── tools.py
-│   ├── main.py
-│   ├── models
-│   │   ├── __init__.py
-│   │   ├── agent_tool.py
-│   │   ├── agent.py
-│   │   ├── base.py
-│   │   ├── conversation.py
-│   │   ├── crew.py
-│   │   ├── mcp_server.py
-│   │   └── tool.py
-│   ├── schemas
-│   │   ├── agent.py
-│   │   ├── conversation.py
-│   │   ├── crew.py
-│   │   ├── mcp_server.py
-│   │   ├── prompt.py
-│   │   └── tool.py
-│   └── services
-│       ├── __init__.py
-│       ├── agent.py
-│       ├── conversation.py
-│       ├── crew.py
-│       ├── mcp_server.py
-│       └── tool.py
+│   ├── __init__.py
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── agents.py
+│   │   ├── conversations.py
+│   │   ├── crews.py
+│   │   ├── mcp_servers.py
+│   │   └── tools.py
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── agents.py
+│   │   ├── database.py
+│   │   ├── graph.py
+│   │   ├── logging.py
+│   │   └── tools.py
+│   ├── main.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── agent_tool.py
+│   │   ├── agent.py
+│   │   ├── base.py
+│   │   ├── conversation.py
+│   │   ├── crew.py
+│   │   ├── mcp_server.py
+│   │   ├── setup_relationships.py
+│   │   └── tool.py
+│   ├── schemas
+│   │   ├── agent.py
+│   │   ├── conversation.py
+│   │   ├── crew.py
+│   │   ├── mcp_server.py
+│   │   ├── prompt.py
+│   │   └── tool.py
+│   └── services
+│       ├── __init__.py
+│       ├── agent.py
+│       ├── conversation.py
+│       ├── crew.py
+│       ├── mcp_server.py
+│       └── tool.py
 ├── create_tables.py
+├── docs
+│   └── UUID_MIGRATION.md
+├── example_ai_crew_chat.py
 ├── example.py
 ├── GEMINI.md
 ├── LICENSE
@@ -53,13 +57,15 @@
 ├── README.md
 ├── requirements.txt
 ├── server.log
+├── test_uuid_models.py
 ├── tests
-│   ├── conftest.py
-│   ├── test_agents.py
-│   ├── test_conversations.py
-│   ├── test_crews.py
-│   ├── test_mcp_servers.py
-│   └── test_tools.py
+│   ├── conftest.py
+│   ├── test_agents.py
+│   ├── test_ai_crew_chat.py
+│   ├── test_conversations.py
+│   ├── test_crews.py
+│   ├── test_mcp_servers.py
+│   └── test_tools.py
 ```
 
 **Directories:**
@@ -70,10 +76,13 @@
 *   `app/models`: Defines the database models for PostgreSQL.
 *   `app/schemas`: Contains the Pydantic schemas for the API.
 *   `app/services`: Contains services that interact with the database and other external resources.
+*   `docs`: Contains project documentation files.
 *   `tests`: Contains the tests for the application.
 *   `.env`: Stores environment variables.
 *   `create_tables.py`: A script to create the database tables.
 *   `example.py`: An example script to test the LangGraph implementation.
+*   `example_ai_crew_chat.py`: An example script demonstrating AI crew chat functionality.
+*   `test_uuid_models.py`: A test script for UUID-based models and relationships.
 *   `PROJECT_OVERVIEW.md`: This file.
 *   `requirements.txt`: Lists the Python dependencies for the project.
 
@@ -83,11 +92,12 @@
 *   [x] Create & manage AI agents
 *   [x] Create & manage MCP servers
 *   [x] Create & manage Tools
-*   [x] Integrate MCP servers for tool usage.
+*   [x] Integrate MCP servers for tool usage
 *   [ ] Monitor activity logs (save/read/retention in database)
 *   [x] Create & manage conversations with AI crews / AI agents
 *   [x] Expose Swagger API Docs for frontend integration instructions
 *   [x] Continuous integration with GitHub Actions
+*   [x] UUID-based primary keys for all database models
 
 ## Dependencies
 
@@ -162,6 +172,13 @@ pytest
     *   [ ] Update the `AGENT_INSTRUCTIONS.md` file with instructions on how to create a crew with a supervisor and multiple agents.
 
 ## Changelog
+
+*   **2025-07-03:**
+    *   Migrated all database models from integer primary keys to UUIDs for improved scalability and security.
+    *   Implemented late-binding relationship setup to resolve circular dependencies between models.
+    *   Added comprehensive UUID model tests.
+    *   Added documentation for UUID migration in `docs/UUID_MIGRATION.md`.
+    *   Enhanced error handling and validation for UUID operations in API routes and services.
 
 *   **2025-07-02:**
     *   Added tests for all endpoints and workflows.

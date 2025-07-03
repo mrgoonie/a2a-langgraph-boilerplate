@@ -12,7 +12,7 @@ load_dotenv()
 llm = ChatOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY"),
-    model="anthropic/claude-3-haiku",
+    model="google/gemini-2.5-flash",
 )
 
 # Define a simple tool
