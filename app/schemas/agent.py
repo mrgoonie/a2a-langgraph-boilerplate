@@ -6,6 +6,7 @@ class AgentBase(BaseModel):
     crew_id: UUID4
     role: str
     system_prompt: str
+    model: Optional[str] = None  # OpenRouter model identifier, e.g., 'anthropic/claude-3-opus-20240229'
 
 class AgentCreate(AgentBase):
     tools: Optional[List[UUID4]] = []

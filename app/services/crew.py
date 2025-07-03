@@ -9,7 +9,7 @@ from app.schemas.crew import CrewCreate
 from app.schemas.prompt import PromptCreate
 from app.core.agents import create_agent, create_supervisor
 from app.core.graph import AgentGraph
-from app.core.tools import create_search_api_tool
+from app.core.tools import create_search_api_tool, async_create_mcp_tools
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -106,17 +106,26 @@ async def _execute_prompt_async(db: Session, crew_id: UUID, prompt: PromptCreate
                 }
             
             try:
-                # Create MCP client with all available servers
-                logger.info("Creating MultiServerMCPClient with all available servers")
+                # Create resilient MCP tools using our custom wrapper
+                logger.info("Creating resilient MCP tools")
                 tool_start_time = time.time()
-                mcp_client = MultiServerMCPClient(connections=connections)
                 
-                # Fetch tools from all MCP servers using the async get_tools method
-                logger.info("Fetching tools from all MCP servers")
-                # Fetch tools directly since we're already in an async context
-                mcp_tools = await mcp_client.get_tools()
+                # Instead of using MultiServerMCPClient directly, use our async_create_mcp_tools function
+                # which creates resilient MCP tools with retry and error handling
+                mcp_tools = []
+                for mcp_server in mcp_servers:
+                    # Create resilient MCP tools with 3 retries max
+                    server_tools = await async_create_mcp_tools(
+                        mcp_server_url=mcp_server.url,
+                        use_resilient_wrapper=True,  # Enable our resilient wrapper
+                        max_retries=3  # Set max retries to 3 for better reliability
+                    )
+                    if server_tools:
+                        mcp_tools.extend(server_tools)
+                        logger.info(f"Added {len(server_tools)} resilient tools from {mcp_server.name}")
+                
                 tool_elapsed = time.time() - tool_start_time
-                logger.info(f"MCP tool creation took {tool_elapsed:.2f} seconds")
+                logger.info(f"Resilient MCP tool creation took {tool_elapsed:.2f} seconds")
                 
                 if mcp_tools:
                     tools.extend(mcp_tools)
@@ -125,18 +134,39 @@ async def _execute_prompt_async(db: Session, crew_id: UUID, prompt: PromptCreate
                         logger.info(f"  Tool {i+1}: {tool.name} - {tool.description[:50]}...")
             except Exception as e:
                 logger.error(f"Error getting MCP tools: {str(e)}")
+                logger.warning("Continuing without MCP tools due to error - agents will have limited capabilities")
+                import traceback
+                logger.debug(traceback.format_exc())
         
         logger.info("Creating agents for crew")
         for agent_model in crew.agents:
             if agent_model.role != "supervisor":
                 logger.info(f"Creating agent: {agent_model.name} with role: {agent_model.role}")
-                agent = create_agent(llm, tools, agent_model.system_prompt)
+                # Create agent-specific LLM instance if model is specified
+                agent_llm = llm
+                if agent_model.model:
+                    logger.info(f"Using custom model for agent {agent_model.name}: {agent_model.model}")
+                    agent_llm = ChatOpenAI(
+                        base_url="https://openrouter.ai/api/v1",
+                        api_key=os.getenv("OPENROUTER_API_KEY"),
+                        model=agent_model.model,
+                    )
+                agent = create_agent(agent_llm, tools, agent_model.system_prompt)
                 agents_data.append({"name": agent_model.name, "agent": agent})
                 logger.info(f"Added agent {agent_model.name} to crew")
 
         logger.info("Creating supervisor agent")
+        # Create supervisor-specific LLM instance if model is specified
+        supervisor_llm = llm
+        if supervisor_model.model:
+            logger.info(f"Using custom model for supervisor {supervisor_model.name}: {supervisor_model.model}")
+            supervisor_llm = ChatOpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=os.getenv("OPENROUTER_API_KEY"),
+                model=supervisor_model.model,
+            )
         supervisor = create_supervisor(
-            llm,
+            supervisor_llm,
             agents_data,
             supervisor_model.system_prompt,
         )
@@ -266,7 +296,16 @@ async def _execute_prompt_async(db: Session, crew_id: UUID, prompt: PromptCreate
         except Exception as e:
             exec_elapsed = time.time() - exec_start_time
             logger.error(f"Async workflow execution failed after {exec_elapsed:.2f} seconds: {str(e)}")
-            raise
+            # Log detailed error information to help diagnose the issue
+            import traceback
+            logger.error(f"Detailed error traceback:")
+            logger.error(traceback.format_exc())
+            # Return a more helpful error message instead of re-raising
+            return {
+                "error": f"Workflow execution failed: {str(e)}",
+                "status": "error",
+                "exec_time": exec_elapsed
+            }
     except Exception as e:
         import traceback
         total_elapsed = time.time() - start_time

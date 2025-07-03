@@ -9,6 +9,7 @@ class Agent(Base):
     name = Column(String, index=True)
     role = Column(String)
     system_prompt = Column(Text)
+    model = Column(String, nullable=True)  # OpenRouter model identifier
     crew_id = Column(GUID, ForeignKey("crews.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

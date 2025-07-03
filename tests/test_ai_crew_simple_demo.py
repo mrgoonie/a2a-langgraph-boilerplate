@@ -119,7 +119,8 @@ def demonstrate_ai_crew_workflow():
         name="Supervisor",
         role="supervisor",  # Must be "supervisor" for the crew's main agent
         system_prompt=supervisor_prompt,
-        crew_id=crew.id
+        crew_id=crew.id,
+        model="google/gemini-2.5-pro"
     )
     
     supervisor = agent_service.create_agent(db=db, agent=supervisor_agent)
@@ -140,7 +141,8 @@ def demonstrate_ai_crew_workflow():
         name="Researcher",
         role="researcher",
         system_prompt=researcher_prompt,
-        crew_id=crew.id
+        crew_id=crew.id,
+        model="google/gemini-2.5-flash"
     )
     
     researcher = agent_service.create_agent(db=db, agent=researcher_agent)
@@ -158,7 +160,8 @@ def demonstrate_ai_crew_workflow():
         name="Coder",
         role="coder",
         system_prompt=coder_prompt,
-        crew_id=crew.id
+        crew_id=crew.id,
+        model="google/gemini-2.5-flash"
     )
     
     coder = agent_service.create_agent(db=db, agent=coder_agent)
@@ -176,7 +179,8 @@ def demonstrate_ai_crew_workflow():
         name="Summarizer",
         role="summarizer",
         system_prompt=summarizer_prompt,
-        crew_id=crew.id
+        crew_id=crew.id,
+        model="google/gemini-2.5-pro"
     )
     
     summarizer = agent_service.create_agent(db=db, agent=summarizer_agent)

@@ -6,7 +6,7 @@ from app.schemas.agent import AgentCreate
 from app.core.tools import create_mcp_tools
 
 def create_agent(db: Session, agent: AgentCreate):
-    db_agent = Agent(name=agent.name, crew_id=agent.crew_id, role=agent.role, system_prompt=agent.system_prompt)
+    db_agent = Agent(name=agent.name, crew_id=agent.crew_id, role=agent.role, system_prompt=agent.system_prompt, model=agent.model)
     if agent.tools:
         for tool_id in agent.tools:
             tool = db.query(Tool).filter(Tool.id == tool_id).first()
@@ -29,6 +29,7 @@ def update_agent(db: Session, agent_id: UUID, agent: AgentCreate):
     db_agent.crew_id = agent.crew_id
     db_agent.role = agent.role
     db_agent.system_prompt = agent.system_prompt
+    db_agent.model = agent.model
     if agent.tools:
         db_agent.tools = []
         for tool_id in agent.tools:
