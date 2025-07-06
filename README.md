@@ -40,7 +40,32 @@ This project is a boilerplate for developers who want to start building an AI ag
 
 ### Diagram of example flow
 
-<diagram of example flow>
+```mermaid
+sequenceDiagram
+    participant User
+    participant Supervisor
+    participant Agent1 as "Agent 1 (Search API)"
+    participant Agent2 as "Agent 2 (Search API)"
+    
+    User->>Supervisor: Query: "Travel advice for Nha Trang beach?"
+    
+    Note over Supervisor: Creates task plan with<br/>termination conditions
+    
+    Supervisor->>Agent1: Delegate task: Find top attractions
+    Supervisor->>Agent2: Delegate task: Research local cuisine
+    
+    Note over Agent1: Uses Search API MCP server
+    Note over Agent2: Uses Search API MCP server
+    
+    Agent1-->>Supervisor: Response: Top attractions info
+    Agent2-->>Supervisor: Response: Local cuisine info
+    
+    Note over Supervisor: Synthesizes all information
+    
+    Supervisor->>User: Final response: Complete travel guide
+    
+    Note over User,Supervisor: Workflow terminates<br/>(message depth limit reached)
+```
 
 ## Getting Started
 
