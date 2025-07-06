@@ -40,8 +40,6 @@ This project is a boilerplate for developers who want to start building an AI ag
 
 ### Diagram of example flow
 
-![Example Workflow](docs/example_workflow.png)
-
 ```mermaid
 sequenceDiagram
     participant User
