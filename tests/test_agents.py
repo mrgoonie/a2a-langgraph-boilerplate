@@ -45,9 +45,13 @@ def test_read_agents(client: TestClient, db_session: Session):
     response = client.get("/agents/")
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 2
-    assert data[0]["name"] == "Test Agent 1"
-    assert data[1]["name"] == "Test Agent 2"
+    # Should have 3 agents: supervisor (auto-created) + 2 test agents
+    assert len(data) == 3
+    # Find the test agents (excluding supervisor)
+    test_agents = [agent for agent in data if agent["role"] != "supervisor"]
+    assert len(test_agents) == 2
+    assert test_agents[0]["name"] == "Test Agent 1"
+    assert test_agents[1]["name"] == "Test Agent 2"
 
 def test_read_agent(client: TestClient, db_session: Session):
     crew_response = client.post("/crews/", json={"name": "Test Crew"})

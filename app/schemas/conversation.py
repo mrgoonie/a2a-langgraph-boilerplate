@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, UUID4, ConfigDict
 from typing import Optional
 
 class ConversationBase(BaseModel):
@@ -13,5 +13,4 @@ class ConversationCreate(ConversationBase):
 class Conversation(ConversationBase):
     id: UUID4
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

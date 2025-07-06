@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, UUID4, ConfigDict
 
 class ToolBase(BaseModel):
     name: str
@@ -11,5 +11,4 @@ class ToolCreate(ToolBase):
 class Tool(ToolBase):
     id: UUID4
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

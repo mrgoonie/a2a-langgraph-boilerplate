@@ -28,6 +28,16 @@ This project is a boilerplate for developers who want to start building an AI ag
 * Grab all the results, analyze and decide to assign more tasks to AI agents, or finish the plan
 * Synthesize the results and respond to user based on the original input prompt.
 
+### Example workflow:
+* Case 1: **Simple Direct Response** - User asks "hello" and supervisor decides to answer directly with a simple response. This requires no agent delegation and completes in a single workflow step.
+* Case 2: **Multi-Agent Collaboration with Termination Control** - User asks for travel advice about Nha Trang beach (Vietnam):
+  1. Supervisor receives query and creates a task plan with clear termination conditions
+  2. Supervisor delegates to agent 1 (connected to Search API MCP server) to find top attractions
+  3. Supervisor delegates to agent 2 (connected to Search API MCP server) to research local cuisine
+  4. Each agent responds with its findings in a single message back to supervisor
+  5. Supervisor synthesizes all information into a final response
+  6. Workflow terminates after supervisor's final response (enforced by message depth limit)
+
 ### Diagram of example flow
 
 <diagram of example flow>

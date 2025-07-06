@@ -1,3 +1,9 @@
+import sys
+import os
+
+# Add the project root to the Python path to allow for absolute imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -5,7 +11,6 @@ from sqlalchemy.orm import sessionmaker, Session
 from app.main import app
 from app.models.base import Base
 from app.core.database import get_db
-import os
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
