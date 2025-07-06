@@ -4,7 +4,7 @@ from app.models.conversation import Conversation
 from app.schemas.conversation import ConversationCreate
 
 def create_conversation(db: Session, conversation: ConversationCreate):
-    db_conversation = Conversation(**conversation.dict())
+    db_conversation = Conversation(**conversation.model_dump())
     db.add(db_conversation)
     db.commit()
     db.refresh(db_conversation)

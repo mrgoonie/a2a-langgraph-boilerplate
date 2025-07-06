@@ -61,7 +61,7 @@ OPENROUTER_API_KEY=""
 * https://github.com/modelcontextprotocol/python-sdk
 
 ## Instructions
-* always run python process in virtual environment (venv)
+* always run python process in a virtual environment (venv)
 * always store relevent data, application's states, user's states,... in database (PostgreSQL)
 * always create/update `PROJECT_OVERVIEW.md` after every implementation with:
     * project structure (use `tree -L 3 -I 'node_modules|.git|.next'` to generate, then explain the directories briefly)
@@ -70,7 +70,7 @@ OPENROUTER_API_KEY=""
     * api routes
     * changelog
 * always check `PROJECT_OVERVIEW.md` before starting a new task
-* always create/update `<feature_name>.md` after every feature implementation with task overview and todos
+* always create/update `<feature_name>_TASK.md` after every feature implementation with task overview and todos
 * always use `context7` MCP tool to study dependencies/plugins/frameworks' docs for the latest updates
 * always implement error catching handler
 * always implement user-friendly flows

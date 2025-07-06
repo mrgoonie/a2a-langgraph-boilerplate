@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, UUID4, ConfigDict
 
 class CrewBase(BaseModel):
     name: str
@@ -9,5 +9,4 @@ class CrewCreate(CrewBase):
 class Crew(CrewBase):
     id: UUID4
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

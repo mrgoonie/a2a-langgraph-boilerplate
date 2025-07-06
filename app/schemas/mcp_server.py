@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, UUID4, ConfigDict
 
 class McpServerBase(BaseModel):
     name: str
@@ -10,5 +10,4 @@ class McpServerCreate(McpServerBase):
 class McpServer(McpServerBase):
     id: UUID4
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
