@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-def test_create_agent(client: TestClient, db_session: Session):
-    crew_response = client.post("/crews/", json={"name": "Test Crew"})
+def test_create_agent(client: TestClient, db_session: Session, auth_headers):
+    crew_response = client.post("/crews/", json={"name": "Test Crew"}, headers=auth_headers)
     crew_id = crew_response.json()["id"]
     response = client.post(
         "/agents/",
@@ -12,6 +12,7 @@ def test_create_agent(client: TestClient, db_session: Session):
             "system_prompt": "You are a test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -21,8 +22,8 @@ def test_create_agent(client: TestClient, db_session: Session):
     assert data["crew_id"] == crew_id
     assert "id" in data
 
-def test_read_agents(client: TestClient, db_session: Session):
-    crew_response = client.post("/crews/", json={"name": "Test Crew"})
+def test_read_agents(client: TestClient, db_session: Session, auth_headers):
+    crew_response = client.post("/crews/", json={"name": "Test Crew"}, headers=auth_headers)
     crew_id = crew_response.json()["id"]
     client.post(
         "/agents/",
@@ -32,6 +33,7 @@ def test_read_agents(client: TestClient, db_session: Session):
             "system_prompt": "You are a test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
     client.post(
         "/agents/",
@@ -41,8 +43,9 @@ def test_read_agents(client: TestClient, db_session: Session):
             "system_prompt": "You are a test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
-    response = client.get("/agents/")
+    response = client.get("/agents/", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     # Should have 3 agents: supervisor (auto-created) + 2 test agents
@@ -53,8 +56,8 @@ def test_read_agents(client: TestClient, db_session: Session):
     assert test_agents[0]["name"] == "Test Agent 1"
     assert test_agents[1]["name"] == "Test Agent 2"
 
-def test_read_agent(client: TestClient, db_session: Session):
-    crew_response = client.post("/crews/", json={"name": "Test Crew"})
+def test_read_agent(client: TestClient, db_session: Session, auth_headers):
+    crew_response = client.post("/crews/", json={"name": "Test Crew"}, headers=auth_headers)
     crew_id = crew_response.json()["id"]
     response = client.post(
         "/agents/",
@@ -64,16 +67,17 @@ def test_read_agent(client: TestClient, db_session: Session):
             "system_prompt": "You are a test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
     agent_id = response.json()["id"]
-    response = client.get(f"/agents/{agent_id}")
+    response = client.get(f"/agents/{agent_id}", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Agent"
     assert data["id"] == agent_id
 
-def test_update_agent(client: TestClient, db_session: Session):
-    crew_response = client.post("/crews/", json={"name": "Test Crew"})
+def test_update_agent(client: TestClient, db_session: Session, auth_headers):
+    crew_response = client.post("/crews/", json={"name": "Test Crew"}, headers=auth_headers)
     crew_id = crew_response.json()["id"]
     response = client.post(
         "/agents/",
@@ -83,6 +87,7 @@ def test_update_agent(client: TestClient, db_session: Session):
             "system_prompt": "You are a test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
     agent_id = response.json()["id"]
     response = client.put(
@@ -93,6 +98,7 @@ def test_update_agent(client: TestClient, db_session: Session):
             "system_prompt": "You are an updated test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -101,8 +107,8 @@ def test_update_agent(client: TestClient, db_session: Session):
     assert data["system_prompt"] == "You are an updated test agent."
     assert data["id"] == agent_id
 
-def test_delete_agent(client: TestClient, db_session: Session):
-    crew_response = client.post("/crews/", json={"name": "Test Crew"})
+def test_delete_agent(client: TestClient, db_session: Session, auth_headers):
+    crew_response = client.post("/crews/", json={"name": "Test Crew"}, headers=auth_headers)
     crew_id = crew_response.json()["id"]
     response = client.post(
         "/agents/",
@@ -112,12 +118,13 @@ def test_delete_agent(client: TestClient, db_session: Session):
             "system_prompt": "You are a test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
     agent_id = response.json()["id"]
-    response = client.delete(f"/agents/{agent_id}")
+    response = client.delete(f"/agents/{agent_id}", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Agent"
     assert data["id"] == agent_id
-    response = client.get(f"/agents/{agent_id}")
+    response = client.get(f"/agents/{agent_id}", headers=auth_headers)
     assert response.status_code == 404

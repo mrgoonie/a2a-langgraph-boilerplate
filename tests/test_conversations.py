@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-def test_create_conversation(client: TestClient, db_session: Session):
-    crew_response = client.post("/crews/", json={"name": "Test Crew"})
+def test_create_conversation(client: TestClient, db_session: Session, auth_headers):
+    crew_response = client.post("/crews/", json={"name": "Test Crew"}, headers=auth_headers)
     crew_id = crew_response.json()["id"]
     agent_response = client.post(
         "/agents/",
@@ -12,6 +12,7 @@ def test_create_conversation(client: TestClient, db_session: Session):
             "system_prompt": "You are a test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
     agent_id = agent_response.json()["id"]
     response = client.post(
@@ -22,6 +23,7 @@ def test_create_conversation(client: TestClient, db_session: Session):
             "crew_id": crew_id,
             "agent_id": agent_id,
         },
+        headers=auth_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -31,8 +33,8 @@ def test_create_conversation(client: TestClient, db_session: Session):
     assert data["agent_id"] == agent_id
     assert "id" in data
 
-def test_read_conversations(client: TestClient, db_session: Session):
-    crew_response = client.post("/crews/", json={"name": "Test Crew"})
+def test_read_conversations(client: TestClient, db_session: Session, auth_headers):
+    crew_response = client.post("/crews/", json={"name": "Test Crew"}, headers=auth_headers)
     crew_id = crew_response.json()["id"]
     agent_response = client.post(
         "/agents/",
@@ -42,6 +44,7 @@ def test_read_conversations(client: TestClient, db_session: Session):
             "system_prompt": "You are a test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
     agent_id = agent_response.json()["id"]
     client.post(
@@ -52,6 +55,7 @@ def test_read_conversations(client: TestClient, db_session: Session):
             "crew_id": crew_id,
             "agent_id": agent_id,
         },
+        headers=auth_headers,
     )
     client.post(
         "/conversations/",
@@ -61,16 +65,17 @@ def test_read_conversations(client: TestClient, db_session: Session):
             "crew_id": crew_id,
             "agent_id": agent_id,
         },
+        headers=auth_headers,
     )
-    response = client.get("/conversations/")
+    response = client.get("/conversations/", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
     assert data[0]["user_input"] == "Hello"
     assert data[1]["user_input"] == "How are you?"
 
-def test_read_conversation(client: TestClient, db_session: Session):
-    crew_response = client.post("/crews/", json={"name": "Test Crew"})
+def test_read_conversation(client: TestClient, db_session: Session, auth_headers):
+    crew_response = client.post("/crews/", json={"name": "Test Crew"}, headers=auth_headers)
     crew_id = crew_response.json()["id"]
     agent_response = client.post(
         "/agents/",
@@ -80,6 +85,7 @@ def test_read_conversation(client: TestClient, db_session: Session):
             "system_prompt": "You are a test agent.",
             "crew_id": crew_id,
         },
+        headers=auth_headers,
     )
     agent_id = agent_response.json()["id"]
     response = client.post(
@@ -90,9 +96,10 @@ def test_read_conversation(client: TestClient, db_session: Session):
             "crew_id": crew_id,
             "agent_id": agent_id,
         },
+        headers=auth_headers,
     )
     conversation_id = response.json()["id"]
-    response = client.get(f"/conversations/{conversation_id}")
+    response = client.get(f"/conversations/{conversation_id}", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["user_input"] == "Hello"

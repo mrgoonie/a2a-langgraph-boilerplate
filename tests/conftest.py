@@ -46,3 +46,18 @@ def client(db_session: Session):
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:
         yield c
+
+@pytest.fixture(scope="function")
+def auth_headers():
+    """Provide default authentication headers for tests."""
+    return {"X-API-Key": "development-api-key-please-change-in-production"}
+
+@pytest.fixture(scope="function")
+def authenticated_client(db_session: Session, auth_headers):
+    """Provide a client with authentication headers."""
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app, headers=auth_headers) as c:
+        yield c
