@@ -175,7 +175,8 @@ async def _execute_prompt_async(db: Session, crew_id: UUID, prompt: PromptCreate
         logger.info("Creating agent graph")
         graph_start_time = time.time()
         graph = AgentGraph(supervisor, agents_data, tools)
-        app = graph.compile()
+        # Set a higher recursion limit to prevent premature termination
+        app = graph.compile(recursion_limit=50)
         graph_elapsed = time.time() - graph_start_time
         logger.info(f"Agent graph compilation took {graph_elapsed:.2f} seconds")
         
@@ -192,18 +193,38 @@ async def _execute_prompt_async(db: Session, crew_id: UUID, prompt: PromptCreate
         logger.info("Starting async workflow execution")
         exec_start_time = time.time()
         try:
-            # Set recursion limit when invoking the graph - use lower limit for speed
-            logger.info("Invoking graph with low recursion limit (10) to reduce token usage")
+            # Set a lower recursion limit for the graph execution
+            # Use this instead of the larger one set during compile time
+            # This ensures the workflow will terminate faster if no end condition is reached
+            recursion_limit = 10
+            logger.info(f"Invoking graph with recursion_limit={recursion_limit} to prevent infinite loops")
+            
+            # Update config with the recursion_limit
+            if config is None:
+                config = {}
+            config["recursion_limit"] = recursion_limit
             
             # Create a single HumanMessage object to prevent duplication
             human_message = HumanMessage(content=prompt.prompt)
             logger.info(f"Created human message with content: {prompt.prompt[:50]}...")
             
-            # Track the state of messages before invocation
-            initial_state = {"messages": [human_message], "message_count": 1}
+            # Initialize state with input prompt and counters
+            initial_state = {
+                "messages": [human_message],
+                "message_count": 1,
+                "agent_visits": {},      # Initialize agent visits counter
+                "supervisor_visits": 0,   # Initialize supervisor visits counter
+                "visit_threshold": 3,     # Maximum visits per agent before termination
+                "supervisor_threshold": 5 # Maximum supervisor visits before termination
+            }
+            
+            # Initialize the StateManager with our initial state
+            from app.core.graph import StateManager
+            StateManager.init_state(initial_state)
             logger.info(f"Initial state has {len(initial_state['messages'])} messages")
             
-            # Invoke the graph with the initial state
+            # Invoke the graph with the initial state and updated config
+            logger.info(f"Executing graph with initial state and visit counters initialized")
             result = await app.ainvoke(initial_state, config=config)
             
             exec_elapsed = time.time() - exec_start_time
