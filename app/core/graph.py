@@ -7,6 +7,7 @@ from langchain_core.runnables import RunnableLambda
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command, Send
 from app.core.logging import get_logger
+from app.core.agents import create_final_response_chain
 
 logger = get_logger(__name__)
 
@@ -162,8 +163,9 @@ class ContextManager:
         return manage_context_growth(state)
 
 class AgentGraph:
-    def __init__(self, supervisor, agents, tools):
+    def __init__(self, supervisor, agents, tools, supervisor_llm):
         self.supervisor = supervisor
+        self.supervisor_llm = supervisor_llm
         self.agents = agents
         self.workflow = StateGraph(AgentState)
         
@@ -190,6 +192,26 @@ class AgentGraph:
             # Determine where to go next
             if "next" in updated_state and (updated_state["next"] == "FINISH" or updated_state["next"] == "__end__"):
                 logger.info(f"Supervisor signaling termination with: {updated_state['next']}")
+                
+                # Check if any agents have been visited
+                agent_visits = StateManager.get_state().get('agent_visits', {})
+                if not agent_visits or all(v == 0 for v in agent_visits.values()):
+                    # If no agents were involved, the supervisor's message is already in the state
+                    logger.info("No agents involved. Supervisor's response is already in messages.")
+                else:
+                    # If agents were involved, generate a synthesized final response
+                    logger.info("Generating final synthesized response from supervisor.")
+                    final_response_chain = create_final_response_chain(self.supervisor_llm)
+                    final_response_obj = final_response_chain.invoke(updated_state)
+                    final_message = AIMessage(
+                        content=final_response_obj.content,
+                        name="supervisor"
+                    )
+                    updated_state["messages"].append(final_message)
+                
+                # 4. Update the global state before terminating
+                StateManager.update_state(updated_state)
+                
                 return StateManager.create_command(updated_state, END)
             
             # Check for explicit completion message from supervisor
@@ -295,6 +317,15 @@ class AgentGraph:
                 # Apply the original agent function to get the updated state
                 # Must use invoke() method because agent_node is a RunnableSequence, not a callable function
                 updated_state = agent_node.invoke(state)
+
+                # Manually name the agent's response message
+                if updated_state.get("messages"):
+                    last_message = updated_state["messages"][-1]
+                    if isinstance(last_message, AIMessage):
+                        # Create a copy and set the name to avoid mutation issues
+                        new_message = last_message.model_copy() if hasattr(last_message, 'model_copy') else last_message.copy()
+                        new_message.name = agent_name
+                        updated_state["messages"][-1] = new_message
                 
                 # Update the global state with the agent's results
                 StateManager.update_state(updated_state)

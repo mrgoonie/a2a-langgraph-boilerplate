@@ -56,9 +56,9 @@ OPENROUTER_API_KEY=""
     * features
     * dependencies
     * api routes
-    * todos
     * changelog
 * always check `PROJECT_OVERVIEW.md` before starting a new task
+* always create/update `<feature_name>.md` after every feature implementation with task overview and todos
 * always use `context7` MCP tool to study dependencies/plugins/frameworks' docs carefully while implementing them
 * always implement error catching handler
 * always implement user-friendly flows

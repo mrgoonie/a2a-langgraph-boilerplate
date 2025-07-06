@@ -29,10 +29,22 @@ llm = ChatOpenAI(
 )
 
 def create_crew(db: Session, crew: CrewCreate):
+    # Create the crew instance
     db_crew = Crew(name=crew.name)
     db.add(db_crew)
+    db.commit() # Commit to get the crew ID
+
+    # Create the default supervisor agent for this crew
+    supervisor_agent = Agent(
+        name="supervisor",
+        role="supervisor",
+        system_prompt="You are a supervisor. Your job is to manage a team of agents to solve the user's request.",
+        crew_id=db_crew.id
+    )
+    db.add(supervisor_agent)
     db.commit()
     db.refresh(db_crew)
+
     return db_crew
 
 def get_crew(db: Session, crew_id: UUID):
@@ -151,7 +163,7 @@ async def _execute_prompt_async(db: Session, crew_id: UUID, prompt: PromptCreate
                         api_key=os.getenv("OPENROUTER_API_KEY"),
                         model=agent_model.model,
                     )
-                agent = create_agent(agent_llm, tools, agent_model.system_prompt)
+                agent = create_agent(agent_llm, tools, agent_model.system_prompt, agent_model.name)
                 agents_data.append({"name": agent_model.name, "agent": agent})
                 logger.info(f"Added agent {agent_model.name} to crew")
 
@@ -174,7 +186,7 @@ async def _execute_prompt_async(db: Session, crew_id: UUID, prompt: PromptCreate
 
         logger.info("Creating agent graph")
         graph_start_time = time.time()
-        graph = AgentGraph(supervisor, agents_data, tools)
+        graph = AgentGraph(supervisor=supervisor, agents=agents_data, tools=tools, supervisor_llm=supervisor_llm)
         # Set a higher recursion limit to prevent premature termination
         app = graph.compile(recursion_limit=50)
         graph_elapsed = time.time() - graph_start_time
@@ -294,24 +306,6 @@ async def _execute_prompt_async(db: Session, crew_id: UUID, prompt: PromptCreate
                 # Ensure there is a final response message that answers the original query
                 # If the last message isn't from the supervisor or there's no appropriate final message,
                 # add one based on the query and available information
-                needs_final_response = True
-                
-                if len(result["messages"]) > 0:
-                    last_msg = result["messages"][-1]
-                    if isinstance(last_msg, dict) and "from" in last_msg and last_msg["from"] == "supervisor":
-                        needs_final_response = False
-                
-                if needs_final_response:
-                    logger.info("No final response detected, generating one now")
-                    # Add a final response message from the supervisor
-                    final_response = {
-                        "type": "AIMessage",
-                        "content": "Based on our analysis, I can provide information about machine learning algorithms, demonstrate a decision tree classifier, and explain how decision trees work in simple terms. Machine learning algorithms are computational methods that enable computers to learn patterns from data without being explicitly programmed for specific tasks. For a simple decision tree example, you would use scikit-learn in Python with libraries like numpy and matplotlib. Decision trees work by creating a flowchart-like structure that makes decisions based on features in your data, splitting at each node based on the most informative attribute until reaching leaf nodes with classifications.",
-                        "from": "supervisor",
-                        "additional_kwargs": {}
-                    }
-                    result["messages"].append(final_response)
-                    logger.info("Added final response message")
             
             return result
         except Exception as e:
