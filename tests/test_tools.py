@@ -1,10 +1,11 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-def test_create_tool(client: TestClient, db_session: Session):
+def test_create_tool(client: TestClient, db_session: Session, auth_headers):
     mcp_server_response = client.post(
         "/mcp_servers/",
         json={"name": "Test MCP Server", "url": "http://localhost:8001"},
+        headers=auth_headers,
     )
     mcp_server_id = mcp_server_response.json()["id"]
     response = client.post(
@@ -14,6 +15,7 @@ def test_create_tool(client: TestClient, db_session: Session):
             "description": "A tool for testing.",
             "mcp_server_id": mcp_server_id,
         },
+        headers=auth_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -21,10 +23,11 @@ def test_create_tool(client: TestClient, db_session: Session):
     assert data["description"] == "A tool for testing."
     assert "id" in data
 
-def test_read_tools(client: TestClient, db_session: Session):
+def test_read_tools(client: TestClient, db_session: Session, auth_headers):
     mcp_server_response = client.post(
         "/mcp_servers/",
         json={"name": "Test MCP Server", "url": "http://localhost:8001"},
+        headers=auth_headers,
     )
     mcp_server_id = mcp_server_response.json()["id"]
     client.post(
@@ -34,6 +37,7 @@ def test_read_tools(client: TestClient, db_session: Session):
             "description": "A tool for testing.",
             "mcp_server_id": mcp_server_id,
         },
+        headers=auth_headers,
     )
     client.post(
         "/tools/",
@@ -42,18 +46,20 @@ def test_read_tools(client: TestClient, db_session: Session):
             "description": "A tool for testing.",
             "mcp_server_id": mcp_server_id,
         },
+        headers=auth_headers,
     )
-    response = client.get("/tools/")
+    response = client.get("/tools/", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 2
     assert data[0]["name"] == "Test Tool 1"
     assert data[1]["name"] == "Test Tool 2"
 
-def test_read_tool(client: TestClient, db_session: Session):
+def test_read_tool(client: TestClient, db_session: Session, auth_headers):
     mcp_server_response = client.post(
         "/mcp_servers/",
         json={"name": "Test MCP Server", "url": "http://localhost:8001"},
+        headers=auth_headers,
     )
     mcp_server_id = mcp_server_response.json()["id"]
     response = client.post(
@@ -63,18 +69,20 @@ def test_read_tool(client: TestClient, db_session: Session):
             "description": "A tool for testing.",
             "mcp_server_id": mcp_server_id,
         },
+        headers=auth_headers,
     )
     tool_id = response.json()["id"]
-    response = client.get(f"/tools/{tool_id}")
+    response = client.get(f"/tools/{tool_id}", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Tool"
     assert data["id"] == tool_id
 
-def test_update_tool(client: TestClient, db_session: Session):
+def test_update_tool(client: TestClient, db_session: Session, auth_headers):
     mcp_server_response = client.post(
         "/mcp_servers/",
         json={"name": "Test MCP Server", "url": "http://localhost:8001"},
+        headers=auth_headers,
     )
     mcp_server_id = mcp_server_response.json()["id"]
     response = client.post(
@@ -84,6 +92,7 @@ def test_update_tool(client: TestClient, db_session: Session):
             "description": "A tool for testing.",
             "mcp_server_id": mcp_server_id,
         },
+        headers=auth_headers,
     )
     tool_id = response.json()["id"]
     response = client.put(
@@ -93,6 +102,7 @@ def test_update_tool(client: TestClient, db_session: Session):
             "description": "An updated tool for testing.",
             "mcp_server_id": mcp_server_id,
         },
+        headers=auth_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -100,10 +110,11 @@ def test_update_tool(client: TestClient, db_session: Session):
     assert data["description"] == "An updated tool for testing."
     assert data["id"] == tool_id
 
-def test_delete_tool(client: TestClient, db_session: Session):
+def test_delete_tool(client: TestClient, db_session: Session, auth_headers):
     mcp_server_response = client.post(
         "/mcp_servers/",
         json={"name": "Test MCP Server", "url": "http://localhost:8001"},
+        headers=auth_headers,
     )
     mcp_server_id = mcp_server_response.json()["id"]
     response = client.post(
@@ -113,12 +124,13 @@ def test_delete_tool(client: TestClient, db_session: Session):
             "description": "A tool for testing.",
             "mcp_server_id": mcp_server_id,
         },
+        headers=auth_headers,
     )
     tool_id = response.json()["id"]
-    response = client.delete(f"/tools/{tool_id}")
+    response = client.delete(f"/tools/{tool_id}", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Tool"
     assert data["id"] == tool_id
-    response = client.get(f"/tools/{tool_id}")
+    response = client.get(f"/tools/{tool_id}", headers=auth_headers)
     assert response.status_code == 404
